@@ -39,42 +39,60 @@ public class BarrenLandAnalysis {
     }
     
     /**
-     * Converts argument containing all barren land coordinates to
-     * a list of each rectangle of barren land.
+     * Converts argument containing all barren land coordinates to a list of each 
+     * rectangle of barren land.
      *
      * @param barrenCoordinates the sets of coordinates for each rectangle of barren land
+     * @return True if the input string matches the intended formatting, false if not
      */
-    protected void parseBarrenLands(String barrenCoordinates) throws ArrayIndexOutOfBoundsException {
-        String coordinatesString = barrenCoordinates.replace("{", "").replace("}", "");
-        String[] coordinateParts = coordinatesString.split(",");
+    protected boolean parseBarrenLands(String barrenCoordinates) {
+        // Check to match {"XLow YLow XHigh YHigh", "XLow2 YLow2 XHigh2 YHigh2", ...}"
+        boolean formatted = barrenCoordinates.matches("\\{([\\\"|“]\\d+ \\d+ \\d+ \\d+[\\\"|“], )*[\\\"|“]\\d+ \\d+ \\d+ \\d+[\\\"|“]\\}\\s*");
+        
+        if (formatted) {
+            String coordinatesString = barrenCoordinates.replace("{", "").replace("}", "");
+            String[] coordinateParts = coordinatesString.split(",");
 
-        List<String> barrenLandStrings = Arrays.asList(coordinateParts);
-        for (String barrenLandString : barrenLandStrings) {
-            String[] barrenLandParts = barrenLandString.trim().replace("\"", "").split(" ");
-            barrenLands.add(new BarrenLand(
-                    Integer.parseInt(barrenLandParts[0]), 
-                    Integer.parseInt(barrenLandParts[1]), 
-                    Integer.parseInt(barrenLandParts[2]), 
-                    Integer.parseInt(barrenLandParts[3])));
+            List<String> barrenLandStrings = Arrays.asList(coordinateParts);
+            for (String barrenLandString : barrenLandStrings) {
+                String[] barrenLandParts = barrenLandString.trim().replace("\"", "").split(" ");
+                barrenLands.add(new BarrenLand(
+                        Integer.parseInt(barrenLandParts[0]), 
+                        Integer.parseInt(barrenLandParts[1]), 
+                        Integer.parseInt(barrenLandParts[2]), 
+                        Integer.parseInt(barrenLandParts[3])));
+            }
         }
+        
+        return formatted;
     }
     
     /**
      * Sets each field in the farm that is within the barrenLands list to not fertile.
+     * @return True if all barrenLands have X and Y values within farm bounds and low values are less than high values, false if not
      */
-    protected void insertBarrenLands() {
+    protected boolean insertBarrenLands() {
+        boolean valid = true;
+        
         for (BarrenLand bl : barrenLands) {
-            for (int x = bl.getXLowCorner(); x <= bl.getXHighCorner(); x++) {
-                for (int y = bl.getYLowCorner(); y <= bl.getYHighCorner(); y++) {
-                    farm[x][y].setFertile(false);
+            if (bl.getXLowCorner() >= 0 && bl.getXHighCorner() < FARM_X && bl.getXLowCorner() <= bl.getXHighCorner() &&
+                    bl.getYLowCorner() >= 0 && bl.getYHighCorner() < FARM_Y && bl.getYLowCorner() <= bl.getYHighCorner()) {
+                for (int x = bl.getXLowCorner(); x <= bl.getXHighCorner(); x++) {
+                    for (int y = bl.getYLowCorner(); y <= bl.getYHighCorner(); y++) {
+                        farm[x][y].setFertile(false);
+                    }
                 }
+            } else {
+                valid = false;
             }
         }
+        
+        return valid;
     }
     
     /**
      * Updates a field with the fieldNumber of an adjacent field and updates 
-     * the fertileArea of the fieldNumber
+     * the fertileArea of the fieldNumber.
      *
      * @param curX X coordinate for current field
      * @param curY Y coordinate for current field
@@ -145,19 +163,19 @@ public class BarrenLandAnalysis {
         
         // Request input of barren land coordinates and parse them
         String barrenCoordinates = System.console().readLine("Input barren land coordinates: ");
-        try {
-            bla.parseBarrenLands(barrenCoordinates);
-        
-            // Add barren land and calculate the fertile areas
-            bla.insertBarrenLands();
-            bla.calculateFertileAreas();
+        if (bla.parseBarrenLands(barrenCoordinates)) {
+            if (bla.insertBarrenLands()) {
+                bla.calculateFertileAreas();
 
-            // Output fertile areas
-            for (Integer area : bla.fertileAreas) {
-                System.out.print(area + " ");
+                // Output fertile areas
+                for (Integer area : bla.fertileAreas) {
+                    System.out.print(area + " ");
+                }
+                System.out.println();
+            } else {
+                System.out.format("Error in input values. Please input X values between 0 and %d and Y values between 0 and %d\n", FARM_X-1, FARM_Y-1);
             }
-            System.out.println();
-        } catch (ArrayIndexOutOfBoundsException e) {
+        } else {
             System.out.println("Error in input values. Please input in the format {\"XLow YLow XHigh YHigh\", \"XLow2 YLow2 XHigh2 YHigh2\", ...}");
         }
     }
